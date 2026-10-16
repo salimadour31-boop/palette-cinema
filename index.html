@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Palette Cinéma | Cinematic Palette</title>
+<style>
+* { box-sizing: border-box; }
+body { font-family: system-ui, -apple-system, sans-serif; margin: 0; padding: 1rem; background: #111; color: #eee; }
+header { text-align: center; margin-bottom: 1.5rem; }
+h1 { margin: 0 0 0.5rem; font-size: 1.8rem; }
+.lang { margin: 0.5rem; }
+button, input, select { font-size: 1rem; padding: 0.5rem 1rem; margin: 0.25rem; border: none; border-radius: 4px; }
+button { background: #4a9; color: white; cursor: pointer; }
+button:hover { background: #5ba; }
+.drop { border: 2px dashed #555; padding: 2rem; text-align: center; margin: 1rem 0; border-radius: 8px; }
+.palette { display: flex; flex-wrap: wrap; gap: 0.5rem; margin: 1rem 0; }
+.swatch { width: 80px; height: 80px; border-radius: 8px; display: flex; align-items: flex-end; justify-content: center; color: white; text-shadow: 0 0 4px #000; font-size: 0.8rem; cursor: pointer; position: relative; }
+.swatch:hover { transform: scale(1.05); }
+.presets { margin: 1rem 0; }
+.export { margin-top: 1rem; }
+textarea { width: 100%; height: 80px; background: #222; color: #0f0; border: 1px solid #444; padding: 0.5rem; font-family: monospace; }
+footer { margin-top: 2rem; text-align: center; font-size: 0.85rem; color: #888; }
+@media (max-width: 600px) { .swatch { width: 60px; height: 60px; } }
+</style>
+</head>
+<body>
+<header>
+<h1 id="title">Palette Cinéma</h1>
+<p id="subtitle">Extrayez des palettes cinématiques depuis vos images ou vidéos</p>
+<div class="lang">
+<button onclick="setLang('fr')">Français</button>
+<button onclick="setLang('en')">English</button>
+<button onclick="setLang('tzm')">Tamazight</button>
+</div>
+</header>
+
+<div class="drop" id="drop">
+<p id="dropText">Déposez une image ou une vidéo ici, ou cliquez pour choisir</p>
+<input type="file" id="file" accept="image/*,video/*" style="display:none">
+</div>
+
+<div class="presets">
+<label id="presetLabel">Préréglages cinématiques :</label>
+<select id="presets" onchange="applyPreset(this.value)">
+<option value="">-- Aucun --</option>
+<option value="tealorange">Teal & Orange</option>
+<option value="warm">Chaud / Warm</option>
+<option value="cool">Froid / Cool</option>
+<option value="moody">Moody / Sombre</option>
+</select>
+</div>
+
+<div class="palette" id="palette"></div>
+
+<div class="export">
+<button onclick="copyCSS()" id="btnCSS">Copier CSS</button>
+<button onclick="copyJSON()" id="btnJSON">Copier JSON</button>
+<button onclick="downloadPNG()" id="btnPNG">Télécharger PNG</button>
+<textarea id="output" readonly></textarea>
+</div>
+
+<canvas id="canvas" style="display:none"></canvas>
+<footer>
+<p>Outil libre MIT — Traitement 100% local dans votre navigateur — Aucune donnée envoyée</p>
+</footer>
+
+<script>
+const translations = {
+fr: {
+title: "Palette Cinéma",
+subtitle: "Extrayez des palettes cinématiques depuis vos images ou vidéos",
+drop: "Déposez une image ou une vidéo ici, ou cliquez pour choisir",
+preset: "Préréglages cinématiques :",
+btnCSS: "Copier CSS",
+btnJSON: "Copier JSON",
+btnPNG: "Télécharger PNG"
+},
+en: {
+title: "Cinematic Palette",
+subtitle: "Extract cinematic color palettes from your images or videos",
+drop: "Drop an image or video here, or click to choose",
+preset: "Cinematic presets:",
+btnCSS: "Copy CSS",
+btnJSON: "Copy JSON",
+btnPNG: "Download PNG"
+},
+tzm: {
+title: "Aɣef n Tili n Cinem a",
+subtitle: "Sṣuḏ palettes n tiliwin n cinem a seg tewlafin neɣ tvidyutin",
+drop: "Sers tewlaft neɣ tvidyu da, neɣ ssed r ɡef ad tferneḍ",
+preset: "Iṣṣẓman n cinem a:",
+btnCSS: "Nɡel CSS",
+btnJSON: "Nɡel JSON",
+btnPNG: "Sider PNG"
+}
+};
+
+let currentLang = 'fr';
+let colors = [];
+
+function setLang(lang) {
+currentLang = lang;
+const t = translations[lang];
+document.getElementById('title').textContent = t.title;
+document.getElementById('subtitle').textContent = t.subtitle;
+document.getElementById('dropText').textContent = t.drop;
+document.getElementById('presetLabel').textContent = t.preset;
+document.getElementById('btnCSS').textContent = t.btnCSS;
+document.getElementById('btnJSON').textContent = t.btnJSON;
+document.getElementById('btnPNG').textContent = t.btnPNG;
+document.documentElement.lang = lang === 'tzm' ? 'tzm' : lang;
+}
+
+const drop = document.getElementById('drop');
+const fileInput = document.getElementById('file');
+drop.onclick = () => fileInput.click();
+drop.ondragover = e => { e.preventDefault(); drop.style.borderColor = '#4a9'; };
+drop.ondragleave = () => drop.style.borderColor = '#555';
+drop.ondrop = e => {
+e.preventDefault();
+drop.style.borderColor = '#555';
+if (e.dataTransfer.files.length) processFile(e.dataTransfer.files[0]);
+};
+fileInput.onchange = e => { if (e.target.files.length) processFile(e.target.files[0]); };
+
+function processFile(file) {
+if (file.type.startsWith('image/')) {
+const img = new Image();
+img.onload = () => extractFromImage(img);
+img.src = URL.createObjectURL(file);
+} else if (file.type.startsWith('video/')) {
+const video = document.createElement('video');
+video.onloadeddata = () => {
+video.currentTime = video.duration / 2 || 1;
+};
+video.onseeked = () => extractFromImage(video);
+video.src = URL.createObjectURL(file);
+}
+}
+
+function extractFromImage(source) {
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+const w = Math.min(source.videoWidth || source.width, 400);
+const h = Math.min(source.videoHeight || source.height, 300);
+canvas.width = w; canvas.height = h;
+ctx.drawImage(source, 0, 0, w, h);
+const data = ctx.getImageData(0, 0, w, h).data;
+const samples = [];
+for (let i = 0; i < data.length; i += 16) { // sample
+const r = data[i], g = data[i+1], b = data[i+2];
+if (r + g + b > 30 && r + g + b < 720) samples.push([r,g,b]);
+}
+colors = quantize(samples, 6);
+renderPalette();
+}
+
+function quantize(pixels, k) {
+// Simple k-means like bucketing by hue
+const buckets = Array.from({length: k}, () => ({sum:[0,0,0], count:0}));
+pixels.forEach(([r,g,b]) => {
+const max = Math.max(r,g,b), min = Math.min(r,g,b);
+const h = (max === min) ? 0 : Math.round(((max===r?(g-b)/(max-min): max===g?2+(b-r)/(max-min):4+(r-g)/(max-min)) * 60 + 360) % 360);
+const idx = Math.floor(h / (360/k)) % k;
+buckets[idx].sum[0] += r; buckets[idx].sum[1] += g; buckets[idx].sum[2] += b;
+buckets[idx].count++;
+});
+return buckets.filter(b => b.count > 0).map(b => {
+const c = b.sum.map(x => Math.round(x / b.count));
+return '#' + c.map(x => x.toString(16).padStart(2,'0')).join('');
+}).slice(0,6);
+}
+
+function renderPalette() {
+const el = document.getElementById('palette');
+el.innerHTML = '';
+colors.forEach(hex => {
+const d = document.createElement('div');
+d.className = 'swatch';
+d.style.background = hex;
+d.textContent = hex;
+d.onclick = () => { navigator.clipboard.writeText(hex); alert('Copié: ' + hex); };
+el.appendChild(d);
+});
+}
+
+const presets = {
+tealorange: ['#0d7377','#14919b','#e07a5f','#f2cc8f','#3d405b','#81b29a'],
+warm: ['#f4a261','#e76f51','#2a9d8f','#e9c46a','#264653','#f4a261'],
+cool: ['#264653','#2a9d8f','#e9c46a','#f4a261','#e76f51','#6d6875'],
+moody: ['#1a1a2e','#16213e','#0f3460','#e94560','#533483','#0f3460']
+};
+
+function applyPreset(name) {
+if (!name) return;
+colors = presets[name];
+renderPalette();
+}
+
+function copyCSS() {
+const css = ':root {\n' + colors.map((c,i) => `  --color-${i+1}: ${c};`).join('\n') + '\n}';
+document.getElementById('output').value = css;
+navigator.clipboard.writeText(css);
+}
+
+function copyJSON() {
+const json = JSON.stringify(colors, null, 2);
+document.getElementById('output').value = json;
+navigator.clipboard.writeText(json);
+}
+
+function downloadPNG() {
+const c = document.createElement('canvas');
+c.width = colors.length * 100; c.height = 120;
+const ctx = c.getContext('2d');
+colors.forEach((hex, i) => {
+ctx.fillStyle = hex;
+ctx.fillRect(i*100, 0, 100, 100);
+ctx.fillStyle = '#fff';
+ctx.font = '12px sans-serif';
+ctx.fillText(hex, i*100+10, 110);
+});
+const a = document.createElement('a');
+a.href = c.toDataURL('image/png');
+a.download = 'palette-cinema.png';
+a.click();
+}
+
+setLang('fr');
+</script>
+</body>
+</html>

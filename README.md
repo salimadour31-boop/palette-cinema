@@ -1,33 +1,27 @@
-# Palette Cinéma
+# Palette Cinéma 🎬
 
-Générateur de palettes de couleurs cinématiques, 100% dans le navigateur.
+Free, open-source, single-page browser tool that extracts a **cinematic color palette** (k-means, 5–8 colors) from an image or a video frame. Runs 100% in your browser — no install, no account, no upload to any server.
 
-## Démo
+**Demo:** https://salimadour31-boop.github.io/palette-cinema/
 
-[Ouvrir l'outil](https://salimadour31-boop.github.io/palette-cinema/)
+![Screenshot](screenshot.png)
+
+## Features
+- Upload / drag-and-drop an image, or a video and capture any frame (`<video>` + canvas)
+- k-means++ color extraction (5–8 colors), sorted dark → light
+- HEX + RGB display, click a swatch to copy its HEX
+- Export: PNG, CSS variables, JSON, plain text
+- Original film-look presets: Teal & orange, Noir, Golden hour, Bleach bypass, Neon night, Desert western
+- Languages: Français, English, Taqbaylit
+- Responsive, system fonts only, no dependencies
 
 ## Usage
+Open the demo, or clone and open `index.html` in any modern browser.
 
-1. Déposez une image ou une vidéo (ou cliquez pour choisir).
-2. La palette est extraite localement.
-3. Utilisez les préréglages cinématiques (Teal & Orange, etc.).
-4. Copiez CSS / JSON ou téléchargez un PNG.
-5. Cliquez sur une couleur pour la copier.
+```
+git clone https://github.com/salimadour31-boop/palette-cinema.git
+node palette-cinema/test/palette.test.js   # run logic tests
+```
 
-Multilingue : Français, English, Tamazight.
-
-## Fonctionnalités
-
-- Extraction de couleurs dominantes depuis image ou frame de vidéo
-- Préréglages de styles cinématiques
-- Export CSS variables, JSON, PNG
-- Interface responsive, traitement 100% local (aucune donnée envoyée)
-- Licence MIT
-
-## Licence
-
-MIT
-
-## Captures
-
-Interface sombre, adaptée au cinéma. Palette visuelle immédiate.
+## License
+MIT — see [LICENSE](LICENSE).
